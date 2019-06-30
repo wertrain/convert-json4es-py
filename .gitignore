@@ -103,6 +103,9 @@ venv.bak/
 # mypy
 .mypy_cache/
 
+# my project
+Project/data
+
 # Created by https://www.gitignore.io/api/virtualenv
 # Edit at https://www.gitignore.io/?templates=virtualenv
 
