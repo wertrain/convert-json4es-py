@@ -1,15 +1,42 @@
-import os
-import sys
 import csv
 import json
-import requests
+import os
+import sys
+
 import pandas
+import requests
 
 CSV_FILE = 'Project/data/Zaim.20190630115341.csv'
+ES_INDEX_NAME = 'zaim'
+ES_TYPE_NAME = 'payment'
 
-def make_json_4_bulk_api():
+ES_LOCAL_IP = 'http://192.168.220.130:9200'
+ES_GET_INDEX_ZAIM = '/' + ES_INDEX_NAME
+ES_GET_INDEX_ZAIM_TYPE_PAYMENT = '/' + ES_INDEX_NAME + '/' + ES_TYPE_NAME
+ES_POST_BULK = '/_bulk'
+ES_SEARCH = ES_GET_INDEX_ZAIM_TYPE_PAYMENT + '/_search?pretty'
+
+#
+# Elasticsearch の API をリクエストする
+#
+def request_elasticsearch():
+    r = requests.get(ES_LOCAL_IP + ES_SEARCH)
+    return json.loads(r.text)
+
+#
+# Elasticsearch にデータを登録する
+#
+def post_to_elasticsearch(data):
+    headers = {'Content-Type': 'application/json'} # 
+    r = requests.post(ES_LOCAL_IP + ES_POST_BULK + '?pretty', data, headers=headers)
+    return json.loads(r.text)
+
+#
+# 読み込んだ csv を Elasticsearch に登録する
+#
+def post_zaim_csv_to_elasticsearch(csv_file_path):
     # CSV から読み込み
-    df = pandas.read_csv(CSV_FILE)
+    df = pandas.read_csv(csv_file_path)
     # 不要な列を削除
     df = df.drop('通貨', axis=1)
     df = df.drop('収入', axis=1)
@@ -36,46 +63,18 @@ def make_json_4_bulk_api():
     # リスト形式へ
     df_list = df_str.split('\n')
     # インデックスを作成
-    es_index = '{"index" : {"_index":"zaim", "_type":"payment"}}\n'
+    es_index = '{"index" : {"_index":"' + ES_INDEX_NAME + '", "_type":"' + ES_TYPE_NAME + '"}}\n'
     # リストをすべて処理
     for row in df_list:
         # Elasticsearch に登録できる JSON に
         es_str = es_index + row + '\n'
         # 登録
-        post_es(es_str.encode('utf-8'))
+        #post_to_elasticsearch(es_str.encode('utf-8'))
+        print (es_str)
 
 def main():
-    data_list = []
-    with open(CSV_FILE, 'r', encoding='utf-8') as f:
-        reader = csv.reader(f)
-        next(reader) # ヘッダーの読み飛ばし
-        for row in reader:
-            data = {}
-            data['time'] = row[0]
-            data['category'] = row[2]
-            data['subcatergory'] = row[3]
-            data['payment'] = row[4]
-            data['shop'] = row[8]
-            data['price'] = row[11]
-            data_list.append(data)
-            #print (data) 
+    post_zaim_csv_to_elasticsearch(CSV_FILE)
+    #print (request_elasticsearch())
 
-    #with open('outputnp.json', 'w') as f:
-    #    f.write(json.dumps(data_list, ensure_ascii=False))
-
-ES_LOCAL_IP = 'http://192.168.220.130:9200'
-ES_GET_DOC = '/library/_doc/1'
-ES_POST_BULK = '/_bulk'
-
-def get_es():
-    r = requests.get(ES_LOCAL_IP + ES_GET_DOC)
-    print (json.loads(r.text))
-
-def post_es(data):
-    headers = {'Content-Type': 'application/json'} # 
-    r = requests.post(ES_LOCAL_IP + ES_POST_BULK + '?pretty', data, headers=headers)
-    print (json.loads(r.text))
-    
 if __name__ == '__main__':
-    #main()
-    make_json_4_bulk_api()
+    main()
